@@ -7,10 +7,22 @@
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
 
+1st core action: User should be able to add information about their pets and also their own scehdule (their constraints).
+2nd core action: Task management, which would be durations, reasoning, and the category of the task.
+3rd core action: Generating and interacting with the schedule itself and being able to edit it the way they like.
+
+Classes: Task management, pet info, user info, and generated schedule.
+Task Management would contain name of task, duration, priority level, category (e.g., "Medical", "Exercise"), and if a task is mandatory.
+Pet info would contain name, species, age, and a list of requirements list.
+User info would contain ownership of pets, time windows, and limits/constraints.
+Generated schedule would contain methods from data from the other classes to generate the schedule and provide explanation and allow for further manual edits.
+
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
+
+My design did change. One change I made was to avoid a logical bottleneck where there was no ordering or optimization policies defined. I had to change the schedule algorithm from being unspecified and defaulting to highest priority first. I made this change so the algorithm doesn't block shorter high priority needs when time could get tight and so it can manage special needs/changes from a user.
 
 ---
 

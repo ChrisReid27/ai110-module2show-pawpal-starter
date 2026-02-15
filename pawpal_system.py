@@ -1,4 +1,17 @@
 """
+
+This module provides a comprehensive system for managing pet care tasks and scheduling.
+It includes classes for representing pet owners, pets, individual tasks, and generating
+optimized daily schedules based on time constraints and preferences.
+
+Classes:
+    UserInfo: Represents a pet owner with time constraints and preferences.
+    PetInfo: Stores static pet information and special needs.
+    Task: Represents individual pet care tasks with scheduling properties.
+    Schedule: Generates and manages daily pet care schedules.
+    Pet: Manages a pet and its associated tasks.
+    Owner: Manages multiple pets and their tasks.
+    Scheduler: Retrieves, organizes, and manages tasks across all pets.
 PawPal+ System Classes
 Pet care task scheduling and management system.
 """
