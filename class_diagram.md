@@ -32,6 +32,10 @@ classDiagram
         -string priority
         -string task_type
         -bool completed
+        -list~string~ applicable_species
+        -list~string~ preference_tags
+        -list~string~ depends_on
+        -bool requires_special_needs
         +__init__(task_id, title, duration_minutes, priority, task_type)
         +mark_completed() void
         +get_priority_value() int
@@ -59,6 +63,8 @@ classDiagram
     Schedule *-- UserInfo : contains
     Schedule *-- PetInfo : contains
     Schedule o-- Task : uses
+    Task ..> PetInfo : applies to species
+    Task ..> UserInfo : matches preferences
 ```
 
 ## Class Descriptions
