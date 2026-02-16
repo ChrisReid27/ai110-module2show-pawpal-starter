@@ -1,20 +1,4 @@
-"""
-
-This module provides a comprehensive system for managing pet care tasks and scheduling.
-It includes classes for representing pet owners, pets, individual tasks, and generating
-optimized daily schedules based on time constraints and preferences.
-
-Classes:
-    UserInfo: Represents a pet owner with time constraints and preferences.
-    PetInfo: Stores static pet information and special needs.
-    Task: Represents individual pet care tasks with scheduling properties.
-    Schedule: Generates and manages daily pet care schedules.
-    Pet: Manages a pet and its associated tasks.
-    Owner: Manages multiple pets and their tasks.
-    Scheduler: Retrieves, organizes, and manages tasks across all pets.
-PawPal+ System Classes
-Pet care task scheduling and management system.
-"""
+"""Provides a pet care scheduling system with owners, pets, tasks, and daily plans."""
 
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -87,7 +71,6 @@ class Task:
     requires_special_needs: bool = False
 
     def __post_init__(self) -> None:
-        """Ensures tasks have a description by defaulting to the title."""
         if not self.description:
             self.description = self.title
 
@@ -162,6 +145,8 @@ class Schedule:
         self.explanation = ""
         self.conflicts = []
 
+        schedule_date = self.date.date() if isinstance(self.date, datetime) else self.date
+
         available_time = self.owner.get_available_time()
         preferences = self.owner.preferences or {}
         preferred_types = set(preferences.get("preferred_task_types", []))
@@ -177,7 +162,7 @@ class Schedule:
             if task.is_completed():
                 excluded.append((task, "already completed"))
                 continue
-            if not task.is_due_on(self.date.date()):
+            if not task.is_due_on(schedule_date):
                 excluded.append((task, "not due today"))
                 continue
             if not self._task_matches_pet(task):
@@ -192,25 +177,7 @@ class Schedule:
             candidates.append(task)
 
         def sort_key(task: Task) -> tuple:
-            """
-            Generate a sorting key for a task based on multiple prioritization criteria.
-            
-            This function creates a tuple used to sort tasks by:
-            1. Start time (earlier times first; tasks without start times ranked lowest)
-            2. Priority score (higher scores first, with bonuses for preferred types, tags, and special needs)
-            3. Duration (shorter tasks first if prioritize_short is True)
-            4. Title (alphabetical order as a tiebreaker)
-            
-            Args:
-                task (Task): The task to generate a sort key for.
-            
-            Returns:
-                tuple: A sorting key containing (time_key, negative_score, duration, title_lower)
-                    - time_key (int): Start time in minutes, or 10^9 if not set
-                    - negative_score (int): Negative priority value to sort high scores first
-                    - duration (int): Task duration in minutes, or 0 if not prioritizing short tasks
-                    - title_lower (str): Lowercase task title for alphabetical sorting
-            """
+            """Builds a multi-factor sort key using time, priority, and preferences."""
             time_key = task.start_time_minutes if task.start_time_minutes is not None else 10**9
             score = task.get_priority_value() * 10
             if task.task_type in preferred_types:
@@ -301,7 +268,6 @@ class Schedule:
         return list(self.conflicts)
 
     def _task_matches_pet(self, task: Task) -> bool:
-        """Checks whether a task applies to the pet based on species and special needs."""
         if task.applicable_species:
             if self.pet.species.lower() not in {s.lower() for s in task.applicable_species}:
                 return False
@@ -310,11 +276,9 @@ class Schedule:
         return True
 
     def _has_time_conflict(self, task: Task) -> bool:
-        """Returns True if the task overlaps any already scheduled timed task."""
         return self._find_time_conflict(task) is not None
 
     def _find_time_conflict(self, task: Task) -> Optional[Task]:
-        """Finds the first scheduled task that overlaps in time with the given task."""
         if task.start_time_minutes is None:
             return None
         task_end = task.start_time_minutes + max(task.duration_minutes, 0)
@@ -329,7 +293,6 @@ class Schedule:
 
     @staticmethod
     def _dependencies_met(task: Task, scheduled_ids: set) -> bool:
-        """Returns True when all dependency IDs are already scheduled."""
         return all(dep_id in scheduled_ids for dep_id in task.depends_on)
 
 
@@ -479,7 +442,6 @@ class Scheduler:
 
     @staticmethod
     def _build_recurring_task_id(base_id: str, next_due_date: date, pet: Pet) -> str:
-        """Builds a unique recurring task ID by adding a date suffix and counter."""
         base = f"{base_id}-{next_due_date.strftime('%Y%m%d')}"
         existing_ids = {task.task_id for task in pet.tasks}
         candidate = base
@@ -535,7 +497,6 @@ class Scheduler:
         return tasks
 
     def _task_belongs_to_pet(self, task: Task, pet_name: str) -> bool:
-        """Returns True if the task appears in the specified pet's task list."""
         for pet in self.owner.pets:
             if pet.name == pet_name and task in pet.tasks:
                 return True

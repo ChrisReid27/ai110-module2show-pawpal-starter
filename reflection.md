@@ -38,6 +38,8 @@ My design did change. One change I made was to avoid a logical bottleneck where 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
 
+One tradeoff is time-first ordering vs priority ordering. It's reasonable because if a task has a fixed start time, scheduling it even when its priority is lower keeps the schedule realistic and prevents missed time-bound care.
+
 ---
 
 ## 3. AI Collaboration

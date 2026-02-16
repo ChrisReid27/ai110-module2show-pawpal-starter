@@ -32,6 +32,26 @@ The scheduling system now includes lightweight algorithms to make daily plans mo
 - Conflict warnings: `Scheduler.detect_time_conflicts(...)` reports tasks that share the same start time without crashing the program.
 - Recurrence on completion: when a daily or weekly task is marked complete, a new instance is created for the next due date.
 
+## Testing PawPal+
+
+
+What to validate in tests:
+
+- Task completion and recurrence behavior (daily/weekly/interval rules)
+- Sorting by time, priority, and duration tie-breakers
+- Conflict detection when two tasks share the same start time
+- Empty states (pets with no tasks, owners with no pets)
+
+Command to run tests:
+
+```bash
+python -m pytest
+```
+
+If a test fails, read the assertion message first, then confirm the related method behavior in pawpal_system.py and update either the code or the test to match the intended rule.
+
+Confidence Level: 3.5 to 4 stars.
+
 ## Getting started
 
 ### Setup
