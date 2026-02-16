@@ -63,6 +63,8 @@ Confidence Level: 4 to 5 stars.
 - Recurrence on completion: daily/weekly tasks spawn the next instance when marked complete.
 
 Demo:
-![alt text](image.png)
-![alt text](image-1.png)
-![alt text](image-2.png)
+<a href="Screenshot 2026-02-15 224011.png" target="_blank"><img src='Screenshot 2026-02-15 224011.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
+
+<a href="Screenshot 2026-02-15 223945.png" target="_blank"><img src='Screenshot 2026-02-15 223945.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
+
+<a href="Screenshot 2026-02-15 223916.png" target="_blank"><img src='Screenshot 2026-02-15 223916.png' title='PawPal App' width='' alt='PawPal App' class='center-block' /></a>
