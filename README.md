@@ -63,6 +63,6 @@ Confidence Level: 4 to 5 stars.
 - Recurrence on completion: daily/weekly tasks spawn the next instance when marked complete.
 
 Demo:
-![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 224011.png>)
-![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 223945.png>)
-![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 223916.png>)
+![alt text](image.png)
+![alt text](image-1.png)
+![alt text](image-2.png)
