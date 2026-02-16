@@ -1,6 +1,6 @@
 # PawPal+ Class Diagram
 
-This diagram shows the four main classes for the PawPal+ pet care planning application.
+This diagram shows the main classes for the PawPal+ pet care planning application.
 
 ```mermaid
 classDiagram
@@ -32,6 +32,11 @@ classDiagram
         -string priority
         -string task_type
         -bool completed
+        -string description
+        -string frequency
+        -int start_time_minutes
+        -int recurrence_interval_days
+        -date last_completed_date
         -list~string~ applicable_species
         -list~string~ preference_tags
         -list~string~ depends_on
@@ -40,6 +45,7 @@ classDiagram
         +mark_completed() void
         +get_priority_value() int
         +is_completed() bool
+        +is_due_on(target_date) bool
         +__str__() string
     }
 
@@ -51,6 +57,7 @@ classDiagram
         -list~Task~ scheduled_tasks
         -int total_time_minutes
         -string explanation
+        -list~Task~ conflicts
         +__init__(date, owner, pet, available_tasks)
         +generate_schedule() void
         +add_task_to_schedule(task) bool
@@ -58,13 +65,53 @@ classDiagram
         +get_explanation() string
         +calculate_total_time() int
         +get_scheduled_tasks() list~Task~
+        +get_conflicts() list~Task~
+    }
+
+    class Pet {
+        -string name
+        -string species
+        -int age
+        -list~Task~ tasks
+        +__init__(name, species, age)
+        +add_task(task) void
+        +remove_task(task_id) bool
+        +get_tasks(include_completed) list~Task~
+        +get_pending_tasks() list~Task~
+    }
+
+    class Owner {
+        -string name
+        -list~Pet~ pets
+        +__init__(name)
+        +add_pet(pet) void
+        +remove_pet(pet_name) bool
+        +get_pet(pet_name) Pet
+        +get_all_tasks(include_completed) list~Task~
+    }
+
+    class Scheduler {
+        -Owner owner
+        +__init__(owner)
+        +get_all_tasks(include_completed) list~Task~
+        +get_tasks_by_pet(include_completed) dict
+        +get_pending_tasks() list~Task~
+        +detect_time_conflicts(include_completed) list~string~
+        +organize_tasks(include_completed, sort_by) list~Task~
+        +filter_tasks(pet_name, status, task_type) list~Task~
+        +mark_task_completed(task_id) bool
     }
 
     Schedule *-- UserInfo : contains
     Schedule *-- PetInfo : contains
     Schedule o-- Task : uses
+    Owner *-- Pet : owns
+    Pet *-- Task : has
+    Scheduler --> Owner : manages
+    Scheduler o-- Task : organizes
     Task ..> PetInfo : applies to species
     Task ..> UserInfo : matches preferences
+    Task ..> Task : depends on
 ```
 
 ## Class Descriptions
@@ -76,13 +123,27 @@ Represents the pet owner with time constraints and preferences. Stores how much 
 Contains information about the pet including name, species (dog, cat, other), age, and any special needs that might affect care scheduling.
 
 ### Task
-Represents individual pet care tasks such as walks, feeding, medications, grooming, and enrichment activities. Each task has a duration, priority level, and type.
+Represents individual pet care tasks such as walks, feeding, medications, grooming, and enrichment activities. Tasks include scheduling metadata like frequency, optional start times, and recurrence details.
 
 ### Schedule
-The main orchestrator class that generates optimized daily pet care schedules. It considers the owner's available time, pet needs, and task priorities to create a feasible plan with explanations.
+Generates optimized daily pet care schedules for a specific owner and pet. It filters available tasks, handles conflicts, and explains scheduling decisions.
+
+### Pet
+Represents a specific pet and the list of tasks assigned to it.
+
+### Owner
+Represents the pet owner and manages their pets and combined task list.
+
+### Scheduler
+Provides cross-pet utilities like sorting, filtering, conflict detection, and completing recurring tasks.
 
 ## Relationships
 
 - **Schedule → UserInfo** (Composition `*--`): Each schedule is created for a specific owner
 - **Schedule → PetInfo** (Composition `*--`): Each schedule is created for a specific pet
 - **Schedule → Task** (Aggregation `o--`): Schedule uses and organizes multiple Task objects
+- **Owner → Pet** (Composition `*--`): Owner manages a collection of pets
+- **Pet → Task** (Composition `*--`): Pet stores its assigned tasks
+- **Scheduler → Owner** (Association `-->`): Scheduler operates on a specific owner
+- **Scheduler → Task** (Aggregation `o--`): Scheduler sorts and filters tasks
+- **Task → Task** (Dependency `..>`): Tasks can depend on other tasks

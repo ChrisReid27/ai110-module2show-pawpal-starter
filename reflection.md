@@ -33,6 +33,8 @@ My design did change. One change I made was to avoid a logical bottleneck where 
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+My scheduler considers time, priority, preferences, and frequencyies of tasks. The constraints that would be repeatedly necessary are the ones that would need to be included, the best example being times/durations of tasks.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
@@ -49,10 +51,14 @@ One tradeoff is time-first ordering vs priority ordering. It's reasonable becaus
 - How did you use AI tools during this project (for example: design brainstorming, debugging, refactoring)?
 - What kinds of prompts or questions were most helpful?
 
+I used A.I. tools heavily, especially for debugging and for making my code present more organized. Questions that were very specific and targeted were the best. I did not utilize inline suggestions much, I would always ask questions that are similar in topic in batches to the main chat.
+
 **b. Judgment and verification**
 
 - Describe one moment where you did not accept an AI suggestion as-is.
 - How did you evaluate or verify what the AI suggested?
+
+The chat suggested a change for pawpal_system that would have required changing my main.py and that would cause tests that previously passed in the suite to fail due to syntax. The code they suggested was more convoluted than the one they suggested so I stuck with my own. This was for def build_recurring_task_id.
 
 ---
 
@@ -63,11 +69,22 @@ One tradeoff is time-first ordering vs priority ordering. It's reasonable becaus
 - What behaviors did you test?
 - Why were these tests important?
 
+Tests:
+Verifies a task starts as incomplete and becomes completed after calling mark_completed().
+Verifies adding a task to a pet increases the pet’s task count.
+Verifies a pet with no tasks returns empty lists for all tasks and pending tasks.
+Verifies a one-time task is not due after it has been completed.
+Verifies a daily task becomes due one day after last completion.
+Verifies a schedule with two tasks at the same start time orders by title and only schedules the first alphabetically.
+Verifies the scheduler detects a time conflict when two pets have tasks with the same start time and reports the correct time.
+
+These are important because they directly address the basic workflow for the app. These are the minimum tests that need to be in place for the bare bones app so that if I add more the basic app running is a non-issue.
+
 **b. Confidence**
 
 - How confident are you that your scheduler works correctly?
 - What edge cases would you test next if you had more time?
-
+I think my scheduler is ok but can use some polishing. An edge case I would add would be for task overlap not with start times but later on in task duration.
 ---
 
 ## 5. Reflection
@@ -75,11 +92,15 @@ One tradeoff is time-first ordering vs priority ordering. It's reasonable becaus
 **a. What went well**
 
 - What part of this project are you most satisfied with?
+The UML diagram and the testing suite.
 
 **b. What you would improve**
 
 - If you had another iteration, what would you improve or redesign?
+I would try to make pawpal_system more readable and simple; improve human readability although it's not too bad right now.
 
 **c. Key takeaway**
 
 - What is one important thing you learned about designing systems or working with AI on this project?
+
+The different modes (Ask, Plan, Agent) are all very useful at specific parts during development. The order for best results is in fact ask->plan->agent/edit or just plan then agent/edit.

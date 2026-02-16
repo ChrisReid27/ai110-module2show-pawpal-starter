@@ -83,6 +83,21 @@ else:
 st.markdown("### Tasks")
 st.caption("Add a few tasks. In your final version, these should feed into your scheduler.")
 
+
+def format_start_time(start_time_minutes: int | None) -> str:
+    if start_time_minutes is None:
+        return ""
+    hours = start_time_minutes // 60
+    minutes = start_time_minutes % 60
+    return f"{hours:02d}:{minutes:02d}"
+
+
+def find_pet_name_for_task(owner: Owner, task: Task) -> str:
+    for pet_item in owner.pets:
+        if task in pet_item.tasks:
+            return pet_item.name
+    return ""
+
 col1, col2, col3 = st.columns(3)
 with col1:
     task_title = st.text_input("Task title", value="Morning walk")
@@ -111,19 +126,60 @@ if st.button("Add task"):
 pet_tasks = pet.get_tasks() if pet else []
 if pet_tasks:
     st.write("Current tasks:")
-    st.table(
-        [
-            {
-                "id": task.task_id,
-                "title": task.title,
-                "duration_minutes": task.duration_minutes,
-                "priority": task.priority,
-                "task_type": task.task_type,
-                "completed": task.completed,
-            }
-            for task in pet_tasks
-        ]
+
+    pet_options = ["All pets"] + [pet_item.name for pet_item in owner.pets]
+    status_options = ["all", "pending", "completed"]
+    task_types = ["all", "walk", "feed", "play", "groom", "other"]
+    sort_options = ["priority", "time", "duration", "frequency", "description"]
+
+    filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+    with filter_col1:
+        pet_filter = st.selectbox("Filter by pet", pet_options, key="task_filter_pet")
+    with filter_col2:
+        status_filter = st.selectbox(
+            "Filter by status", status_options, key="task_filter_status"
+        )
+    with filter_col3:
+        type_filter = st.selectbox("Filter by type", task_types, key="task_filter_type")
+    with filter_col4:
+        sort_by = st.selectbox("Sort by", sort_options, key="task_sort_by")
+
+    filtered_tasks = scheduler.filter_tasks(
+        pet_name=None if pet_filter == "All pets" else pet_filter,
+        status=None if status_filter == "all" else status_filter,
+        task_type=None if type_filter == "all" else type_filter,
     )
+    sorted_tasks = scheduler.organize_tasks(include_completed=True, sort_by=sort_by)
+    filtered_task_ids = {task.task_id for task in filtered_tasks}
+    sorted_filtered_tasks = [
+        task for task in sorted_tasks if task.task_id in filtered_task_ids
+    ]
+
+    if sorted_filtered_tasks:
+        st.table(
+            [
+                {
+                    "pet": find_pet_name_for_task(owner, task),
+                    "id": task.task_id,
+                    "title": task.title,
+                    "duration_minutes": task.duration_minutes,
+                    "priority": task.priority,
+                    "task_type": task.task_type,
+                    "start_time": format_start_time(task.start_time_minutes),
+                    "completed": task.completed,
+                }
+                for task in sorted_filtered_tasks
+            ]
+        )
+    else:
+        st.info("No tasks match the current filters.")
+
+    conflict_messages = scheduler.detect_time_conflicts(include_completed=False)
+    if conflict_messages:
+        for message in conflict_messages:
+            st.warning(message)
+    else:
+        st.success("No time conflicts detected for pending tasks.")
 else:
     st.info("No tasks yet. Add one above.")
 

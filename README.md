@@ -50,24 +50,19 @@ python -m pytest
 
 If a test fails, read the assertion message first, then confirm the related method behavior in pawpal_system.py and update either the code or the test to match the intended rule.
 
-Confidence Level: 3.5 to 4 stars.
+Confidence Level: 4 to 5 stars.
 
-## Getting started
 
-### Setup
+## Features
 
-```bash
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
+- Time-first sorting: tasks with `start_time_minutes` come first, then priority, duration, and title.
+- Preference-aware scoring: boosts preferred task types/tags and special-needs tasks.
+- Conflict warnings: detects tasks that share a start time and surfaces warnings.
+- Dependency handling: skips tasks until required `depends_on` tasks are scheduled.
+- Due-date filtering: honors `daily`, `weekly`, and interval recurrence rules via `last_completed_date`.
+- Recurrence on completion: daily/weekly tasks spawn the next instance when marked complete.
 
-### Suggested workflow
-
-1. Read the scenario carefully and identify requirements and edge cases.
-2. Draft a UML diagram (classes, attributes, methods, relationships).
-3. Convert UML into Python class stubs (no logic yet).
-4. Implement scheduling logic in small increments.
-5. Add tests to verify key behaviors.
-6. Connect your logic to the Streamlit UI in `app.py`.
-7. Refine UML so it matches what you actually built.
+Demo:
+![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 224011.png>)
+![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 223945.png>)
+![alt text](<../../../Pictures/Screenshots/Screenshot 2026-02-15 223916.png>)
