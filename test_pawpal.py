@@ -2,7 +2,6 @@ import pytest
 
 from pawpal_system import Pet, Task
 
-
 def test_task_mark_completed_updates_status() -> None:
 	task = Task(
 		task_id="t1",

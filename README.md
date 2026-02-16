@@ -22,6 +22,16 @@ Your final app should:
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
 
+## Smarter Scheduling
+
+The scheduling system now includes lightweight algorithms to make daily plans more useful without adding heavy complexity.
+
+- Time-first ordering: tasks with `start_time_minutes` are sorted ahead of untimed tasks, with priority and duration used as tie-breakers.
+- Filtering helpers: `Scheduler.filter_tasks(...)` supports filtering by pet, status, and type for quick views in the UI or CLI.
+- Recurring tasks: tasks can be marked as `daily`, `weekly`, or use a `recurrence_interval_days` rule. Due checks are based on `last_completed_date`.
+- Conflict warnings: `Scheduler.detect_time_conflicts(...)` reports tasks that share the same start time without crashing the program.
+- Recurrence on completion: when a daily or weekly task is marked complete, a new instance is created for the next due date.
+
 ## Getting started
 
 ### Setup

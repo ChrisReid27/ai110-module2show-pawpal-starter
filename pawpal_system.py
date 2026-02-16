@@ -17,8 +17,8 @@ Pet care task scheduling and management system.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Dict, List, Optional
+from datetime import date, datetime, timedelta
+from typing import Dict, Iterable, List, Optional, Tuple
 
 
 @dataclass
@@ -78,18 +78,23 @@ class Task:
     completed: bool = False
     description: str = ""
     frequency: str = "once"
+    start_time_minutes: Optional[int] = None
+    recurrence_interval_days: Optional[int] = None
+    last_completed_date: Optional[date] = None
     applicable_species: List[str] = field(default_factory=list)
     preference_tags: List[str] = field(default_factory=list)
     depends_on: List[str] = field(default_factory=list)
     requires_special_needs: bool = False
 
     def __post_init__(self) -> None:
+        """Ensures tasks have a description by defaulting to the title."""
         if not self.description:
             self.description = self.title
 
     def mark_completed(self) -> None:
         """Marks the task as completed."""
         self.completed = True
+        self.last_completed_date = date.today()
 
     def get_priority_value(self) -> int:
         """Returns numeric priority value (high=3, medium=2, low=1)."""
@@ -99,6 +104,27 @@ class Task:
     def is_completed(self) -> bool:
         """Returns the completion status of the task."""
         return self.completed
+
+    def is_due_on(self, target_date: date) -> bool:
+        """Returns True if the task is due on the target date."""
+        if self.completed and self.frequency == "once":
+            return False
+        frequency = (self.frequency or "once").lower().strip()
+        if frequency == "once":
+            return True
+        if self.recurrence_interval_days:
+            if not self.last_completed_date:
+                return True
+            return (target_date - self.last_completed_date).days >= self.recurrence_interval_days
+        if frequency == "daily":
+            if not self.last_completed_date:
+                return True
+            return (target_date - self.last_completed_date).days >= 1
+        if frequency == "weekly":
+            if not self.last_completed_date:
+                return True
+            return (target_date - self.last_completed_date).days >= 7
+        return True
 
     def __str__(self) -> str:
         """Returns a string representation of the task."""
@@ -119,15 +145,7 @@ class Schedule:
         pet: PetInfo,
         available_tasks: List[Task]
     ):
-        """
-        Initializes a new schedule.
-
-        Args:
-            date: The date for this schedule
-            owner: UserInfo object with owner details
-            pet: PetInfo object with pet details
-            available_tasks: List of tasks to schedule
-        """
+        """Initializes a schedule for a given date, owner, pet, and task list."""
         self.date = date
         self.owner = owner
         self.pet = pet
@@ -135,12 +153,14 @@ class Schedule:
         self.scheduled_tasks: List[Task] = []
         self.total_time_minutes = 0
         self.explanation = ""
+        self.conflicts: List[Tuple[Task, Task]] = []
 
     def generate_schedule(self) -> None:
         """Creates an optimized schedule based on constraints."""
         self.scheduled_tasks = []
         self.total_time_minutes = 0
         self.explanation = ""
+        self.conflicts = []
 
         available_time = self.owner.get_available_time()
         preferences = self.owner.preferences or {}
@@ -157,6 +177,9 @@ class Schedule:
             if task.is_completed():
                 excluded.append((task, "already completed"))
                 continue
+            if not task.is_due_on(self.date.date()):
+                excluded.append((task, "not due today"))
+                continue
             if not self._task_matches_pet(task):
                 excluded.append((task, "not applicable to pet"))
                 continue
@@ -169,6 +192,26 @@ class Schedule:
             candidates.append(task)
 
         def sort_key(task: Task) -> tuple:
+            """
+            Generate a sorting key for a task based on multiple prioritization criteria.
+            
+            This function creates a tuple used to sort tasks by:
+            1. Start time (earlier times first; tasks without start times ranked lowest)
+            2. Priority score (higher scores first, with bonuses for preferred types, tags, and special needs)
+            3. Duration (shorter tasks first if prioritize_short is True)
+            4. Title (alphabetical order as a tiebreaker)
+            
+            Args:
+                task (Task): The task to generate a sort key for.
+            
+            Returns:
+                tuple: A sorting key containing (time_key, negative_score, duration, title_lower)
+                    - time_key (int): Start time in minutes, or 10^9 if not set
+                    - negative_score (int): Negative priority value to sort high scores first
+                    - duration (int): Task duration in minutes, or 0 if not prioritizing short tasks
+                    - title_lower (str): Lowercase task title for alphabetical sorting
+            """
+            time_key = task.start_time_minutes if task.start_time_minutes is not None else 10**9
             score = task.get_priority_value() * 10
             if task.task_type in preferred_types:
                 score += 5
@@ -176,7 +219,7 @@ class Schedule:
                 score += 4
             if self.pet.has_special_needs() and task.requires_special_needs:
                 score += 6
-            return (-score, task.duration_minutes if prioritize_short else 0, task.title.lower())
+            return (time_key, -score, task.duration_minutes if prioritize_short else 0, task.title.lower())
 
         remaining = sorted(candidates, key=sort_key)
         scheduled_ids = set()
@@ -200,7 +243,13 @@ class Schedule:
                     explanations.append(f"Scheduled {task.title} based on priority and fit.")
                     progress = True
                 else:
-                    explanations.append(f"Skipped {task.title}; not enough time remaining.")
+                    conflict = self._find_time_conflict(task)
+                    if conflict:
+                        explanations.append(
+                            f"Skipped {task.title}; time conflict with {conflict.title}."
+                        )
+                    else:
+                        explanations.append(f"Skipped {task.title}; not enough time remaining.")
             remaining = next_remaining
 
         for task, reason in excluded:
@@ -218,18 +267,12 @@ class Schedule:
         self.explanation = "\n".join(explanations).strip()
 
     def add_task_to_schedule(self, task: Task) -> bool:
-        """
-        Adds a task to the schedule if time permits.
-
-        Args:
-            task: The task to add
-
-        Returns:
-            True if task was added, False otherwise
-        """
+        """Adds a task to the schedule if time permits and there is no conflict."""
         if task.duration_minutes <= 0:
             return False
         if (self.total_time_minutes + task.duration_minutes) > self.owner.get_available_time():
+            return False
+        if self._has_time_conflict(task):
             return False
         self.scheduled_tasks.append(task)
         self.total_time_minutes += task.duration_minutes
@@ -253,7 +296,12 @@ class Schedule:
         """Returns the list of scheduled tasks."""
         return list(self.scheduled_tasks)
 
+    def get_conflicts(self) -> List[Tuple[Task, Task]]:
+        """Returns detected time conflicts among scheduled tasks."""
+        return list(self.conflicts)
+
     def _task_matches_pet(self, task: Task) -> bool:
+        """Checks whether a task applies to the pet based on species and special needs."""
         if task.applicable_species:
             if self.pet.species.lower() not in {s.lower() for s in task.applicable_species}:
                 return False
@@ -261,8 +309,27 @@ class Schedule:
             return False
         return True
 
+    def _has_time_conflict(self, task: Task) -> bool:
+        """Returns True if the task overlaps any already scheduled timed task."""
+        return self._find_time_conflict(task) is not None
+
+    def _find_time_conflict(self, task: Task) -> Optional[Task]:
+        """Finds the first scheduled task that overlaps in time with the given task."""
+        if task.start_time_minutes is None:
+            return None
+        task_end = task.start_time_minutes + max(task.duration_minutes, 0)
+        for scheduled in self.scheduled_tasks:
+            if scheduled.start_time_minutes is None:
+                continue
+            scheduled_end = scheduled.start_time_minutes + max(scheduled.duration_minutes, 0)
+            if task.start_time_minutes < scheduled_end and scheduled.start_time_minutes < task_end:
+                self.conflicts.append((task, scheduled))
+                return scheduled
+        return None
+
     @staticmethod
     def _dependencies_met(task: Task, scheduled_ids: set) -> bool:
+        """Returns True when all dependency IDs are already scheduled."""
         return all(dep_id in scheduled_ids for dep_id in task.depends_on)
 
 
@@ -351,14 +418,76 @@ class Scheduler:
         """Returns all incomplete tasks across pets."""
         return self.owner.get_all_tasks(include_completed=False)
 
+    def detect_time_conflicts(self, include_completed: bool = False) -> List[str]:
+        """Returns warning messages for tasks scheduled at the same time."""
+        tasks_by_time: Dict[int, List[Tuple[str, Task]]] = {}
+        for pet in self.owner.pets:
+            for task in pet.get_tasks(include_completed=include_completed):
+                if task.start_time_minutes is None:
+                    continue
+                tasks_by_time.setdefault(task.start_time_minutes, []).append((pet.name, task))
+
+        warnings: List[str] = []
+        for start_time, entries in sorted(tasks_by_time.items()):
+            if len(entries) < 2:
+                continue
+            time_label = f"{start_time // 60:02d}:{start_time % 60:02d}"
+            names = ", ".join(
+                f"{pet_name} - {task.title}" for pet_name, task in entries
+            )
+            warnings.append(f"Warning: {time_label} conflict between {names}.")
+        return warnings
+
     def mark_task_completed(self, task_id: str) -> bool:
         """Marks a task complete across all pets. Returns True if found."""
         for pet in self.owner.pets:
             for task in pet.tasks:
                 if task.task_id == task_id:
                     task.mark_completed()
+                    next_task = self._create_next_recurring_task(task, pet)
+                    if next_task:
+                        pet.add_task(next_task)
                     return True
         return False
+
+    def _create_next_recurring_task(self, task: Task, pet: Pet) -> Optional[Task]:
+        """Creates the next daily or weekly task instance, or returns None for other frequencies."""
+        frequency = (task.frequency or "once").lower().strip()
+        if frequency not in {"daily", "weekly"}:
+            return None
+        today = date.today()
+        days = 1 if frequency == "daily" else 7
+        next_due_date = today + timedelta(days=days)
+        next_task_id = self._build_recurring_task_id(task.task_id, next_due_date, pet)
+        return Task(
+            task_id=next_task_id,
+            title=task.title,
+            duration_minutes=task.duration_minutes,
+            priority=task.priority,
+            task_type=task.task_type,
+            completed=False,
+            description=task.description,
+            frequency=task.frequency,
+            start_time_minutes=task.start_time_minutes,
+            recurrence_interval_days=task.recurrence_interval_days,
+            last_completed_date=today,
+            applicable_species=list(task.applicable_species),
+            preference_tags=list(task.preference_tags),
+            depends_on=list(task.depends_on),
+            requires_special_needs=task.requires_special_needs,
+        )
+
+    @staticmethod
+    def _build_recurring_task_id(base_id: str, next_due_date: date, pet: Pet) -> str:
+        """Builds a unique recurring task ID by adding a date suffix and counter."""
+        base = f"{base_id}-{next_due_date.strftime('%Y%m%d')}"
+        existing_ids = {task.task_id for task in pet.tasks}
+        candidate = base
+        counter = 1
+        while candidate in existing_ids:
+            candidate = f"{base}-{counter}"
+            counter += 1
+        return candidate
 
     def organize_tasks(
         self,
@@ -367,6 +496,16 @@ class Scheduler:
     ) -> List[Task]:
         """Returns a sorted list of tasks across pets."""
         tasks = self.get_all_tasks(include_completed=include_completed)
+        if sort_by == "time":
+            return sorted(
+                tasks,
+                key=lambda task: (
+                    task.start_time_minutes if task.start_time_minutes is not None else 10**9,
+                    -task.get_priority_value(),
+                    task.duration_minutes,
+                    task.title.lower(),
+                )
+            )
         if sort_by == "duration":
             return sorted(tasks, key=lambda task: task.duration_minutes)
         if sort_by == "frequency":
@@ -374,3 +513,30 @@ class Scheduler:
         if sort_by == "description":
             return sorted(tasks, key=lambda task: task.description.lower())
         return sorted(tasks, key=lambda task: task.get_priority_value(), reverse=True)
+
+    def filter_tasks(
+        self,
+        pet_name: Optional[str] = None,
+        status: Optional[str] = None,
+        task_type: Optional[str] = None,
+    ) -> List[Task]:
+        """Filters tasks by pet name and completion status."""
+        tasks = self.get_all_tasks(include_completed=True)
+        if pet_name:
+            tasks = [task for task in tasks if self._task_belongs_to_pet(task, pet_name)]
+        if status:
+            normalized = status.lower().strip()
+            if normalized in {"completed", "done"}:
+                tasks = [task for task in tasks if task.is_completed()]
+            elif normalized in {"pending", "incomplete"}:
+                tasks = [task for task in tasks if not task.is_completed()]
+        if task_type:
+            tasks = [task for task in tasks if task.task_type == task_type]
+        return tasks
+
+    def _task_belongs_to_pet(self, task: Task, pet_name: str) -> bool:
+        """Returns True if the task appears in the specified pet's task list."""
+        for pet in self.owner.pets:
+            if pet.name == pet_name and task in pet.tasks:
+                return True
+        return False

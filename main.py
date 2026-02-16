@@ -3,7 +3,7 @@ PawPal+ Demo Script
 Demonstrates the pet care task scheduling system.
 """
 
-from pawpal_system import Owner, Pet, Task
+from pawpal_system import Owner, Pet, Scheduler, Task
 
 def main():
     # Create an Owner
@@ -24,7 +24,10 @@ def main():
         duration_minutes=30,
         priority="high",
         task_type="exercise",
-        description="Take Max for his morning walk around the neighborhood"
+        description="Take Max for his morning walk around the neighborhood",
+        start_time_minutes=540,
+        frequency="daily",
+        last_completed_date=None,
     )
 
     task2 = Task(
@@ -33,7 +36,10 @@ def main():
         duration_minutes=10,
         priority="high",
         task_type="feeding",
-        description="Give Max his breakfast (2 cups of dry food)"
+        description="Give Max his breakfast (2 cups of dry food)",
+        start_time_minutes=480,
+        frequency="daily",
+        last_completed_date=None,
     )
 
     task3 = Task(
@@ -42,13 +48,16 @@ def main():
         duration_minutes=15,
         priority="medium",
         task_type="grooming",
-        description="Brush Max's fur to prevent matting"
+        description="Brush Max's fur to prevent matting",
+        start_time_minutes=600,
+        frequency="weekly",
+        last_completed_date=None,
     )
 
-    # Add tasks to dog
+    # Add tasks to dog in an out-of-order sequence
+    dog.add_task(task3)
     dog.add_task(task1)
     dog.add_task(task2)
-    dog.add_task(task3)
 
     # Create Tasks for Whiskers (the cat)
     task4 = Task(
@@ -57,7 +66,10 @@ def main():
         duration_minutes=5,
         priority="high",
         task_type="feeding",
-        description="Give Whiskers wet food for breakfast"
+        description="Give Whiskers wet food for breakfast",
+        start_time_minutes=480,
+        frequency="daily",
+        last_completed_date=None,
     )
 
     task5 = Task(
@@ -66,12 +78,15 @@ def main():
         duration_minutes=10,
         priority="medium",
         task_type="cleaning",
-        description="Scoop and clean Whiskers' litter box"
+        description="Scoop and clean Whiskers' litter box",
+        start_time_minutes=550,
+        frequency="daily",
+        last_completed_date=None,
     )
 
-    # Add tasks to cat
-    cat.add_task(task4)
+    # Add tasks to cat in an out-of-order sequence
     cat.add_task(task5)
+    cat.add_task(task4)
 
     # Print Today's Schedule
     print("=" * 60)
@@ -79,6 +94,40 @@ def main():
     print("=" * 60)
     print(f"Owner: {owner.name}")
     print(f"Pets: {len(owner.pets)}")
+    print()
+
+    scheduler = Scheduler(owner)
+    sorted_by_time = scheduler.organize_tasks(include_completed=False, sort_by="time")
+
+    print("ALL TASKS SORTED BY TIME")
+    print("-" * 60)
+    for task in sorted_by_time:
+        time_label = (
+            f"{task.start_time_minutes // 60:02d}:{task.start_time_minutes % 60:02d}"
+            if task.start_time_minutes is not None
+            else "--:--"
+        )
+        print(
+            f"  {time_label} [{task.priority.upper():6}] {task.title:20} "
+            f"({task.duration_minutes} min)"
+        )
+    print()
+
+    print("FILTERED: ONLY PENDING DOG TASKS")
+    print("-" * 60)
+    pending_dog_tasks = scheduler.filter_tasks(pet_name="Max", status="pending")
+    for task in pending_dog_tasks:
+        print(f"  [{task.priority.upper():6}] {task.title:20} ({task.duration_minutes} min)")
+    print()
+
+    print("TIME CONFLICT WARNINGS")
+    print("-" * 60)
+    conflict_warnings = scheduler.detect_time_conflicts(include_completed=False)
+    if conflict_warnings:
+        for warning in conflict_warnings:
+            print(f"  {warning}")
+    else:
+        print("  No time conflicts detected.")
     print()
 
     # Display schedule for each pet
@@ -91,17 +140,29 @@ def main():
         if not tasks:
             print("  No tasks scheduled")
         else:
-            # Sort tasks by priority (high to low)
+            # Sort tasks by time for per-pet display
             sorted_tasks = sorted(
                 tasks,
-                key=lambda t: t.get_priority_value(),
-                reverse=True
+                key=lambda t: (
+                    t.start_time_minutes if t.start_time_minutes is not None else 10**9,
+                    -t.get_priority_value(),
+                    t.duration_minutes,
+                    t.title.lower(),
+                )
             )
 
             total_time = 0
             for task in sorted_tasks:
                 status = "✓" if task.completed else "○"
-                print(f"  {status} [{task.priority.upper():6}] {task.title:20} ({task.duration_minutes} min)")
+                time_label = (
+                    f"{task.start_time_minutes // 60:02d}:{task.start_time_minutes % 60:02d}"
+                    if task.start_time_minutes is not None
+                    else "--:--"
+                )
+                print(
+                    f"  {status} {time_label} [{task.priority.upper():6}] {task.title:20} "
+                    f"({task.duration_minutes} min)"
+                )
                 print(f"      {task.description}")
                 total_time += task.duration_minutes
 
